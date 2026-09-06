@@ -144,15 +144,30 @@ export default function ReportsReviewPage() {
                 </div>
 
                 {/* Evidence Image */}
-                {rep.mediaUrls && rep.mediaUrls.length > 0 && (
-                  <div className="rounded-xl overflow-hidden border border-white/[0.06]">
-                    <img
-                      src={rep.mediaUrls[0]}
-                      alt="Citizen evidence"
-                      className="w-full h-44 object-cover"
-                    />
-                  </div>
-                )}
+                {(() => {
+                  let urls: string[] = [];
+                  if (Array.isArray(rep.mediaUrls)) {
+                    urls = rep.mediaUrls;
+                  } else if (typeof rep.mediaUrls === 'string') {
+                    try {
+                      const parsed = JSON.parse(rep.mediaUrls);
+                      if (Array.isArray(parsed)) urls = parsed;
+                    } catch {}
+                  }
+                  if (!urls || urls.length === 0 || !urls[0]) return null;
+                  const rawUrl = urls[0];
+                  const apiBase = (api.defaults.baseURL || '').replace(/\/api\/?$/, '');
+                  const src = rawUrl.startsWith('http') ? rawUrl : `${apiBase}${rawUrl.startsWith('/') ? '' : '/'}${rawUrl}`;
+                  return (
+                    <div className="rounded-xl overflow-hidden border border-white/[0.06]">
+                      <img
+                        src={src}
+                        alt="Citizen evidence"
+                        className="w-full h-44 object-cover"
+                      />
+                    </div>
+                  );
+                })()}
 
                 {/* Action Buttons */}
                 <div className="pt-2 border-t border-white/[0.06] flex items-center justify-end gap-2">
