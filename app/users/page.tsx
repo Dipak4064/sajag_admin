@@ -1,8 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Users, PhoneCall, Mic, ShieldAlert, CheckCircle2, AlertCircle, Volume2 } from 'lucide-react';
 import { api } from '@/lib/api';
+import { fadeUp, staggerContainer } from '@/lib/motion';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
 export default function UsersRosterPage() {
   const [users, setUsers] = useState<any[]>([]);
@@ -67,11 +71,16 @@ export default function UsersRosterPage() {
   }, []);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+    <motion.div
+      variants={staggerContainer()}
+      initial="hidden"
+      animate="show"
+      className="space-y-6"
+    >
+      <motion.div variants={fadeUp} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-black text-white flex items-center gap-2">
-            <Users className="w-5 h-5 text-emerald-400" />
+            <Users className="w-5 h-5 text-cyan-400" />
             Resident Safety Roster & Whisper Voice Transcripts
           </h1>
           <p className="text-xs text-slate-400 mt-1">
@@ -81,22 +90,27 @@ export default function UsersRosterPage() {
 
         {/* Status Breakdown Chips */}
         <div className="flex items-center gap-2 text-xs font-bold">
-          <span className="px-3 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 rounded-xl">
+          <Badge variant="success" className="px-3 py-1 text-xs normal-case rounded-xl">
             Safe: {tally.SAFE}
-          </span>
-          <span className="px-3 py-1 bg-red-500/10 text-red-400 border border-red-500/30 rounded-xl">
+          </Badge>
+          {/* Distress count is red only while somebody is actually unsafe */}
+          <Badge
+            variant={tally.UNSAFE > 0 ? 'destructive' : 'secondary'}
+            className="px-3 py-1 text-xs normal-case rounded-xl"
+          >
             Distress: {tally.UNSAFE}
-          </span>
-          <span className="px-3 py-1 bg-slate-800 text-slate-400 border border-slate-700 rounded-xl">
+          </Badge>
+          <Badge variant="warning" className="px-3 py-1 text-xs normal-case rounded-xl">
             Pending: {tally.NO_RESPONSE}
-          </span>
+          </Badge>
         </div>
-      </div>
+      </motion.div>
 
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+      <motion.div variants={fadeUp}>
+      <Card className="overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="bg-slate-950/80 border-b border-slate-800 text-slate-400 uppercase tracking-wider font-semibold">
+            <thead className="bg-white/[0.03] border-b border-white/[0.06] text-slate-400 uppercase tracking-wider font-semibold">
               <tr>
                 <th className="p-4">Resident Name</th>
                 <th className="p-4">Contact Phone</th>
@@ -105,7 +119,7 @@ export default function UsersRosterPage() {
                 <th className="p-4">Whisper Transcribed Voice / IVR Response</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60">
+            <tbody className="divide-y divide-white/[0.05]">
               {loading ? (
                 <tr>
                   <td colSpan={5} className="p-12 text-center text-slate-500">
@@ -119,42 +133,50 @@ export default function UsersRosterPage() {
                   </td>
                 </tr>
               ) : (
-                users.map((u) => {
+                <AnimatePresence mode="popLayout" initial={false}>
+                {users.map((u) => {
                   const isSafe = u.status === 'SAFE';
                   const isUnsafe = u.status === 'UNSAFE';
                   const lastResponse = u.responses?.[0];
 
                   return (
-                    <tr key={u.id} className="hover:bg-slate-800/40 transition-colors">
+                    <motion.tr
+                      key={u.id}
+                      layout
+                      variants={fadeUp}
+                      initial="hidden"
+                      animate="show"
+                      exit={{ opacity: 0 }}
+                      className={`transition-colors ${
+                        isUnsafe ? 'bg-red-500/[0.06] hover:bg-red-500/[0.1]' : 'hover:bg-white/[0.04]'
+                      }`}
+                    >
                       <td className="p-4 font-bold text-white whitespace-nowrap">{u.name}</td>
                       <td className="p-4 font-mono text-slate-300 whitespace-nowrap">
-                        <a href={`tel:${u.phone}`} className="text-blue-400 hover:underline flex items-center gap-1">
+                        <a href={`tel:${u.phone}`} className="text-cyan-300 hover:text-cyan-200 hover:underline flex items-center gap-1">
                           <PhoneCall className="w-3 h-3" /> {u.phone}
                         </a>
                       </td>
                       <td className="p-4 text-slate-400 whitespace-nowrap">{u.municipalityId || 'Kathmandu Ward 14'}</td>
                       <td className="p-4 whitespace-nowrap">
-                        <span
-                          className={`text-[10px] font-black px-2.5 py-1 rounded-full border uppercase ${
-                            isSafe
-                              ? 'bg-emerald-950 text-emerald-400 border-emerald-800'
-                              : isUnsafe
-                              ? 'bg-red-950 text-red-400 border-red-800 animate-pulse'
-                              : 'bg-slate-950 text-slate-400 border-slate-800'
-                          }`}
+                        <Badge
+                          variant={isSafe ? 'success' : isUnsafe ? 'destructive' : 'warning'}
+                          className={isUnsafe ? 'animate-pulse' : ''}
                         >
                           {u.status}
-                        </span>
+                        </Badge>
                       </td>
                       <td className="p-4 text-slate-300">
                         {lastResponse?.message ? (
-                          <div className="flex items-start gap-2 bg-slate-950/60 p-2.5 rounded-xl border border-slate-800 max-w-md">
-                            <Mic className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                          <div className="flex items-start gap-2 bg-white/[0.03] p-2.5 rounded-xl border border-white/[0.06] max-w-md">
+                            <Mic className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
                             <div>
                               <div className="italic text-[11px]">"{lastResponse.message}"</div>
                               {lastResponse.urgency && (
-                                <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded mt-1 inline-block ${
-                                  lastResponse.urgency === 'CRITICAL' ? 'bg-red-950 text-red-400' : 'bg-slate-800 text-slate-400'
+                                <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded mt-1 inline-block border ${
+                                  lastResponse.urgency === 'CRITICAL'
+                                    ? 'border-red-500/40 bg-red-500/15 text-red-300'
+                                    : 'border-white/10 bg-white/[0.06] text-slate-400'
                                 }`}>
                                   Urgency: {lastResponse.urgency}
                                 </span>
@@ -165,14 +187,16 @@ export default function UsersRosterPage() {
                           <span className="text-slate-600 italic">No message recorded</span>
                         )}
                       </td>
-                    </tr>
+                    </motion.tr>
                   );
-                })
+                })}
+                </AnimatePresence>
               )}
             </tbody>
           </table>
         </div>
-      </div>
-    </div>
+      </Card>
+      </motion.div>
+    </motion.div>
   );
 }

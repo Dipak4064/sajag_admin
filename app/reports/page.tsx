@@ -1,12 +1,18 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { FileSpreadsheet, Check, X, MapPin, Camera, CheckCircle2, Clock } from 'lucide-react';
 import { api } from '@/lib/api';
+import { fadeUp, staggerContainer, spring } from '@/lib/motion';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
 export default function ReportsReviewPage() {
   const [reports, setReports] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [flashId, setFlashId] = useState<string | null>(null);
 
   const fetchReports = async () => {
     try {
@@ -63,65 +69,83 @@ export default function ReportsReviewPage() {
     setReports((prev) =>
       prev.map((r) => (r.id === id ? { ...r, status } : r))
     );
+    setFlashId(id);
+    setTimeout(() => setFlashId(null), 900);
   };
 
   return (
-    <div className="space-y-6">
-      <div>
+    <motion.div
+      variants={staggerContainer()}
+      initial="hidden"
+      animate="show"
+      className="space-y-6"
+    >
+      <motion.div variants={fadeUp}>
         <h1 className="text-xl font-black text-white flex items-center gap-2">
-          <FileSpreadsheet className="w-5 h-5 text-amber-400" />
+          <FileSpreadsheet className="w-5 h-5 text-cyan-400" />
           Citizen Incident Field Reports Verification
         </h1>
         <p className="text-xs text-slate-400 mt-1">
           Crowdsourced disaster observations submitted by residents across Kathmandu. Review ground photos to confirm truth.
         </p>
-      </div>
+      </motion.div>
 
       {loading ? (
         <div className="text-center py-16 text-slate-500 text-xs">Loading incident reports...</div>
       ) : reports.length === 0 ? (
-        <div className="p-12 bg-slate-900 border border-slate-800 rounded-2xl text-center text-xs text-slate-500">
-          No citizen field reports submitted yet.
-        </div>
+        <motion.div variants={fadeUp}>
+          <Card className="p-12 text-center text-xs text-slate-500">
+            No citizen field reports submitted yet.
+          </Card>
+        </motion.div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <motion.div variants={staggerContainer()} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <AnimatePresence mode="popLayout" initial={false}>
           {reports.map((rep) => {
             const isVerified = rep.status === 'VERIFIED';
             const isRejected = rep.status === 'REJECTED';
+            const isFlashing = flashId === rep.id;
 
             return (
-              <div
+              <motion.div
                 key={rep.id}
-                className="p-5 bg-slate-900 border border-slate-800 rounded-2xl space-y-3 shadow-xl transition-all"
+                layout
+                variants={fadeUp}
+                initial="hidden"
+                animate={isFlashing ? { opacity: 1, y: 0, scale: [1, 1.02, 1] } : 'show'}
+                exit={{ opacity: 0, scale: 0.94 }}
+                transition={isFlashing ? { duration: 0.5 } : spring}
               >
-                <div className="flex items-start justify-between gap-2 border-b border-slate-800 pb-3">
+              <Card
+                className={`p-5 space-y-3 transition-colors ${
+                  isFlashing
+                    ? isVerified
+                      ? '!border-emerald-500/70'
+                      : '!border-slate-500/70'
+                    : 'hover:!border-cyan-400/25'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-2 border-b border-white/[0.06] pb-3">
                   <div>
                     <span className="text-xs font-black text-white uppercase">
                       {rep.disasterType}
                     </span>
                     <p className="text-xs text-slate-300 mt-1">{rep.description}</p>
                   </div>
-                  <span
-                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                      isVerified
-                        ? 'bg-emerald-950 text-emerald-400 border-emerald-800'
-                        : isRejected
-                        ? 'bg-red-950 text-red-400 border-red-800'
-                        : 'bg-amber-950 text-amber-400 border-amber-800'
-                    }`}
-                  >
+                  {/* A rejected report is a moderation outcome, not an emergency — never red */}
+                  <Badge variant={isVerified ? 'success' : isRejected ? 'secondary' : 'warning'}>
                     {rep.status}
-                  </span>
+                  </Badge>
                 </div>
 
                 <div className="flex items-center gap-1.5 text-xs text-slate-400 font-mono">
-                  <MapPin className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                  <MapPin className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
                   <span className="truncate">{rep.addressText}</span>
                 </div>
 
                 {/* Evidence Image */}
                 {rep.mediaUrls && rep.mediaUrls.length > 0 && (
-                  <div className="rounded-xl overflow-hidden border border-slate-800">
+                  <div className="rounded-xl overflow-hidden border border-white/[0.06]">
                     <img
                       src={rep.mediaUrls[0]}
                       alt="Citizen evidence"
@@ -131,25 +155,30 @@ export default function ReportsReviewPage() {
                 )}
 
                 {/* Action Buttons */}
-                <div className="pt-2 border-t border-slate-800 flex items-center justify-end gap-2">
-                  <button
-                    onClick={() => handleVerify(rep.id, 'REJECTED')}
-                    className="px-3 py-1.5 bg-slate-950 hover:bg-red-950/80 border border-slate-800 hover:border-red-700 text-xs font-bold text-red-400 rounded-xl transition-colors flex items-center gap-1"
-                  >
-                    <X className="w-3.5 h-3.5" /> Reject Report
-                  </button>
-                  <button
-                    onClick={() => handleVerify(rep.id, 'VERIFIED')}
-                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl transition-colors flex items-center gap-1 shadow-lg shadow-emerald-950"
-                  >
-                    <Check className="w-3.5 h-3.5" /> Verify & Broadcast
-                  </button>
+                <div className="pt-2 border-t border-white/[0.06] flex items-center justify-end gap-2">
+                  <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.94 }}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleVerify(rep.id, 'REJECTED')}
+                      className="hover:bg-white/[0.06] hover:text-slate-100"
+                    >
+                      <X className="w-3.5 h-3.5" /> Reject Report
+                    </Button>
+                  </motion.div>
+                  <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.94 }}>
+                    <Button size="sm" onClick={() => handleVerify(rep.id, 'VERIFIED')}>
+                      <Check className="w-3.5 h-3.5" /> Verify &amp; Broadcast
+                    </Button>
+                  </motion.div>
                 </div>
-              </div>
+              </Card>
+              </motion.div>
             );
           })}
-        </div>
+          </AnimatePresence>
+        </motion.div>
       )}
-    </div>
+    </motion.div>
   );
 }

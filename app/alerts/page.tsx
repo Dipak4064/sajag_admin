@@ -1,9 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { BellRing, CheckCircle, Clock, PhoneCall, AlertTriangle, ShieldCheck, CheckCircle2, ChevronRight } from 'lucide-react';
 import { api } from '@/lib/api';
 import { getSocket } from '@/lib/socket';
+import { fadeUp, staggerContainer, spring } from '@/lib/motion';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
 export default function AlertsPage() {
   const [events, setEvents] = useState<any[]>([]);
@@ -83,46 +87,81 @@ export default function AlertsPage() {
     const currentIndex = sequence.indexOf(currentStatus);
     const stepIndex = sequence.indexOf(step);
 
-    if (currentIndex >= stepIndex) return 'text-emerald-400 font-bold border-emerald-500 bg-emerald-950/40';
-    return 'text-slate-600 border-slate-800 bg-slate-950';
+    if (currentIndex >= stepIndex)
+      return 'text-emerald-300 font-bold border-emerald-500/50 bg-emerald-500/10';
+    return 'text-slate-500 border-white/[0.06] bg-white/[0.03]';
   };
 
+  // Severity → semantic scale. Only genuinely critical hazards get red.
+  const severityVariant = (severity: string) =>
+    severity === 'CRITICAL' || severity === 'SEVERE'
+      ? ('destructive' as const)
+      : severity === 'HIGH' || severity === 'MODERATE'
+      ? ('warning' as const)
+      : ('info' as const);
+
+  const riskColor = (score: number) =>
+    score >= 70 ? 'text-red-400' : score >= 40 ? 'text-amber-400' : 'text-emerald-400';
+
   return (
-    <div className="space-y-6">
-      <div>
+    <motion.div
+      variants={staggerContainer()}
+      initial="hidden"
+      animate="show"
+      className="space-y-6"
+    >
+      <motion.div variants={fadeUp}>
         <h1 className="text-xl font-black text-white flex items-center gap-2">
-          <BellRing className="w-5 h-5 text-red-500" />
+          <BellRing className="w-5 h-5 text-cyan-400" />
           Alert State Machine & Automated Twilio Outbound Dispatch
         </h1>
         <p className="text-xs text-slate-400 mt-1">
           Lifecycle State Transition: <code>DETECTED ➔ ANALYZING ➔ CONFIRMED ➔ NOTIFYING ➔ RESOLVED</code>
         </p>
-      </div>
+      </motion.div>
 
       {loading ? (
         <div className="text-center py-16 text-slate-500 text-xs">Querying alert dispatch logs...</div>
       ) : events.length === 0 ? (
-        <div className="p-8 bg-slate-900 border border-slate-800 rounded-2xl text-center text-xs text-slate-500">
-          No disaster hazard events recorded. Use the "SIMULATE DISASTER" button to trigger an emergency curve.
-        </div>
+        <motion.div variants={fadeUp}>
+          <Card className="p-8 text-center text-xs text-slate-500">
+            No disaster hazard events recorded. Use the "SIMULATE DISASTER" button to trigger an emergency curve.
+          </Card>
+        </motion.div>
       ) : (
-        events.map((event) => (
-          <div key={event.id} className="p-5 bg-slate-900 border border-slate-800 rounded-2xl space-y-4 shadow-xl">
+        <AnimatePresence mode="popLayout" initial={false}>
+        {events.map((event) => (
+          <motion.div
+            key={event.id}
+            layout
+            variants={fadeUp}
+            initial="hidden"
+            animate="show"
+            exit={{ opacity: 0, scale: 0.96 }}
+          >
+          <Card
+            className={`p-5 space-y-4 transition-colors ${
+              (event.severity === 'CRITICAL' || event.severity === 'SEVERE') &&
+              event.status !== 'RESOLVED'
+                ? '!border-red-500/45 shadow-glow-red'
+                : ''
+            }`}
+          >
             {/* Event Header */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-white/[0.06] pb-3">
               <div>
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-extrabold text-white">{event.title || event.type}</span>
-                  <span className="text-[10px] bg-red-600/20 text-red-400 border border-red-500/30 px-2 py-0.5 rounded font-bold uppercase">
-                    {event.severity}
-                  </span>
+                  <Badge variant={severityVariant(event.severity)}>{event.severity}</Badge>
                 </div>
                 <p className="text-xs text-slate-400 mt-0.5">{event.description}</p>
               </div>
 
               <div className="text-right">
                 <div className="text-xs text-slate-400">Risk Score</div>
-                <div className="text-lg font-black text-red-400">{event.riskScore} / 100</div>
+                <div className={`text-lg font-black ${riskColor(event.riskScore)}`}>
+                  {event.riskScore} / 100
+                </div>
               </div>
             </div>
 
@@ -139,16 +178,16 @@ export default function AlertsPage() {
             </div>
 
             {/* Twilio IVR Outbound Log */}
-            <div className="space-y-2 pt-2 border-t border-slate-800">
+            <div className="space-y-2 pt-2 border-t border-white/[0.06]">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-bold text-slate-300 flex items-center gap-1.5">
-                  <PhoneCall className="w-3.5 h-3.5 text-emerald-400" />
+                  <PhoneCall className="w-3.5 h-3.5 text-cyan-400" />
                   Twilio IVR Voice Dispatch Log ({event.alerts?.length || 0} Residents Targeted)
                 </span>
                 <span className="text-[11px] text-slate-500 font-mono">5km Geofenced Ring</span>
               </div>
 
-              <div className="divide-y divide-slate-800/60 bg-slate-950 rounded-xl border border-slate-800 text-xs">
+              <div className="divide-y divide-white/[0.05] bg-white/[0.03] rounded-xl border border-white/[0.06] text-xs">
                 {event.alerts && event.alerts.length > 0 ? (
                   event.alerts.map((al: any) => (
                     <div key={al.id} className="p-3 flex items-center justify-between">
@@ -158,17 +197,13 @@ export default function AlertsPage() {
                       </div>
 
                       <div className="text-right space-y-0.5">
-                        <span
-                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                            al.status === 'SAFE'
-                              ? 'bg-emerald-950 text-emerald-400 border-emerald-800'
-                              : al.status === 'UNSAFE'
-                              ? 'bg-red-950 text-red-400 border-red-800'
-                              : 'bg-amber-950 text-amber-400 border-amber-800'
-                          }`}
+                        <Badge
+                          variant={
+                            al.status === 'SAFE' ? 'success' : al.status === 'UNSAFE' ? 'destructive' : 'warning'
+                          }
                         >
                           {al.status}
-                        </span>
+                        </Badge>
                         {al.responses?.[0]?.message && (
                           <div className="text-[10px] text-slate-400 italic">
                             "{al.responses[0].message}"
@@ -184,9 +219,11 @@ export default function AlertsPage() {
                 )}
               </div>
             </div>
-          </div>
-        ))
+          </Card>
+          </motion.div>
+        ))}
+        </AnimatePresence>
       )}
-    </div>
+    </motion.div>
   );
 }
