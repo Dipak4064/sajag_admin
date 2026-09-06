@@ -6,6 +6,7 @@ export interface SessionUser {
   email?: string;
   phone: string;
   role: UserRole;
+  photoUrl?: string | null;
   latitude?: number;
   longitude?: number;
 }
