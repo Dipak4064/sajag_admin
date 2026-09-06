@@ -1,0 +1,35 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main, dipak]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SAJAG_DEPLOY_SSH_KEY }}
+
+      - name: Sync source to server
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H 20.219.9.34 >> ~/.ssh/known_hosts
+          rsync -az --delete \
+            --exclude node_modules --exclude .git --exclude .next \
+            --exclude .env --exclude .env.local --exclude .env.production \
+            ./ azureuser@20.219.9.34:/var/www/sajag/admin/
+
+      - name: Build and restart
+        run: |
+          ssh azureuser@20.219.9.34 '
+            set -e
+            cd /var/www/sajag/admin
+            npm ci --no-audit --no-fund
+            npm run build
+            pm2 restart sajag-admin --update-env
+          '
