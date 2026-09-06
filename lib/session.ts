@@ -20,11 +20,31 @@ export const STAFF_ROLES: UserRole[] = ['AUTHORITY', 'ADMIN', 'SUPER_ADMIN'];
 export const isStaffRole = (role?: UserRole | null) =>
   !!role && STAFF_ROLES.includes(role);
 
-export const CITIZEN_APP_URL =
-  process.env.NEXT_PUBLIC_CITIZEN_URL || 'http://localhost:3000';
+/*
+  Both apps are served from one host in production (citizen at /, console at
+  /admin) but from different ports in dev. Env vars win; otherwise we derive
+  from the live origin so a missing var can never strand a production user on
+  localhost, and only fall back to dev ports when actually on localhost.
+*/
+function resolveAppUrl(envValue: string | undefined, devUrl: string, prodPath: string) {
+  if (envValue) return envValue;
+  if (typeof window !== 'undefined' && !/^(localhost|127\.0\.0\.1)$/.test(window.location.hostname)) {
+    return `${window.location.origin}${prodPath}`;
+  }
+  return devUrl;
+}
 
-export const ADMIN_APP_URL =
-  process.env.NEXT_PUBLIC_ADMIN_URL || 'http://localhost:3001/admin';
+export const CITIZEN_APP_URL = resolveAppUrl(
+  process.env.NEXT_PUBLIC_CITIZEN_URL,
+  'http://localhost:3000',
+  ''
+);
+
+export const ADMIN_APP_URL = resolveAppUrl(
+  process.env.NEXT_PUBLIC_ADMIN_URL,
+  'http://localhost:3001/admin',
+  '/admin'
+);
 
 /* Sign-in happens only on the citizen app; the console has no login page. */
 export const LOGIN_URL = `${CITIZEN_APP_URL}/login`;

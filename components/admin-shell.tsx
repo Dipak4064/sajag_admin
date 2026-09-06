@@ -22,6 +22,7 @@ import PageTransition from '@/components/page-transition';
 import StaffGuard from '@/components/staff-guard';
 import SajagMark from '@/components/brand/sajag-mark';
 import { Button } from '@/components/ui/button';
+import { CITIZEN_APP_URL } from '@/lib/session';
 import { getSocket } from '@/lib/socket';
 
 const navGroups = [
@@ -177,7 +178,7 @@ function StatusFooter({
 
       {showLabels && (
         <Button asChild variant="outline" size="sm" className="w-full justify-center">
-          <a href="http://localhost:3000" target="_blank" rel="noopener noreferrer">
+          <a href={CITIZEN_APP_URL} target="_blank" rel="noopener noreferrer">
             Citizen View <ExternalLink className="h-3 w-3" />
           </a>
         </Button>
