@@ -15,15 +15,27 @@ import {
   ExternalLink,
   Activity,
   Menu,
-  X
+  X,
+  UserCircle,
+  LogOut
 } from 'lucide-react';
 import SimulationModal from '@/components/simulation/simulation-modal';
 import PageTransition from '@/components/page-transition';
 import StaffGuard from '@/components/staff-guard';
 import SajagMark from '@/components/brand/sajag-mark';
 import { Button } from '@/components/ui/button';
-import { CITIZEN_APP_URL } from '@/lib/session';
+import { CITIZEN_APP_URL, ADMIN_LOGIN_URL } from '@/lib/session';
+import { useAuthStore } from '@/stores/auth.store';
 import { getSocket } from '@/lib/socket';
+
+const ROLE_LABELS: Record<string, string> = {
+  SUPER_ADMIN: 'Super Admin',
+  ADMIN: 'Admin',
+  AUTHORITY: 'Authority',
+  RESPONDER: 'Responder',
+  RESCUE_TEAM: 'Rescue Team',
+  CITIZEN: 'Citizen'
+};
 
 const navGroups = [
   {
@@ -213,6 +225,14 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
   const [socketConnected, setSocketConnected] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const user = useAuthStore((state) => state.user);
+  const logout = useAuthStore((state) => state.logout);
+
+  const handleSignOut = () => {
+    logout();
+    // basePath-aware: the console's sign-in lives at /admin/login.
+    window.location.href = ADMIN_LOGIN_URL;
+  };
 
   useEffect(() => {
     const socket = getSocket();
@@ -330,6 +350,25 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
 
               <div className="flex shrink-0 items-center gap-2.5">
                 <OpsClock />
+
+                {user && (
+                  <>
+                    <div className="hidden items-center gap-2 rounded-lg border border-white/[0.06] bg-white/[0.03] px-2.5 py-1 sm:flex">
+                      <UserCircle className="h-4 w-4 shrink-0 text-cyan-400" />
+                      <div className="leading-tight">
+                        <div className="max-w-[110px] truncate text-[11px] font-bold text-slate-200">
+                          {user.name}
+                        </div>
+                        <div className="text-[9px] font-bold uppercase tracking-wider text-cyan-400/80">
+                          {ROLE_LABELS[user.role] ?? user.role}
+                        </div>
+                      </div>
+                    </div>
+                    <Button variant="ghost" size="icon" title="Sign out" onClick={handleSignOut}>
+                      <LogOut className="h-4 w-4 text-slate-400" />
+                    </Button>
+                  </>
+                )}
 
                 <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.95 }}>
                   <Button variant="destructive" size="sm" onClick={() => setIsSimModalOpen(true)}>

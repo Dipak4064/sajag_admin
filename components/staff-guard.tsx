@@ -4,15 +4,15 @@ import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { ShieldAlert } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
-import { CITIZEN_APP_URL, LOGIN_URL } from '@/lib/session';
+import { ADMIN_LOGIN_URL, CITIZEN_APP_URL } from '@/lib/session';
 
 /*
   Gate for the operations console. The session is restored on the client only
   (it lives in localStorage + a host-scoped cookie), so this waits for hydration
   before deciding — otherwise every first paint would bounce to sign-in.
 
-  There is no sign-in page here: authentication happens on the citizen app,
-  which sends municipal accounts back to this console.
+  /admin/login hosts its own municipal sign-in form; unauthenticated visitors to
+  any other console route are bounced there (or to the citizen flow via LOGIN_URL).
 */
 export default function StaffGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -29,7 +29,8 @@ export default function StaffGuard({ children }: { children: React.ReactNode }) 
     if (!isHydrated || isLoginRoute) return;
 
     if (!isAuthenticated) {
-      window.location.href = LOGIN_URL;
+      // basePath-aware: the console's sign-in lives at /admin/login.
+      window.location.href = ADMIN_LOGIN_URL;
       return;
     }
 
