@@ -43,7 +43,7 @@ export const CITIZEN_APP_URL = resolveAppUrl(
 
 export const ADMIN_APP_URL = resolveAppUrl(
   process.env.NEXT_PUBLIC_ADMIN_URL,
-  'http://localhost:3001/admin',
+  'http://localhost:3001',
   '/admin'
 );
 
@@ -85,8 +85,11 @@ export function saveSession(user: SessionUser, token: string) {
 export function loadSession(): { user: SessionUser; token: string } | null {
   if (typeof window === 'undefined') return null;
 
-  const token = localStorage.getItem(TOKEN_KEY) ?? readCookie(TOKEN_KEY);
-  const rawUser = localStorage.getItem(USER_KEY) ?? readCookie(USER_KEY);
+  // The cookie is shared by the citizen and admin apps on different ports.
+  // Prefer it so a login in one app cannot be shadowed by stale localStorage
+  // from the other app.
+  const token = readCookie(TOKEN_KEY) ?? localStorage.getItem(TOKEN_KEY);
+  const rawUser = readCookie(USER_KEY) ?? localStorage.getItem(USER_KEY);
   if (!token || !rawUser) return null;
 
   try {
@@ -103,7 +106,7 @@ export function loadSession(): { user: SessionUser; token: string } | null {
 
 export function getToken(): string | null {
   if (typeof window === 'undefined') return null;
-  return localStorage.getItem(TOKEN_KEY) ?? readCookie(TOKEN_KEY);
+  return readCookie(TOKEN_KEY) ?? localStorage.getItem(TOKEN_KEY);
 }
 
 export function clearSession() {

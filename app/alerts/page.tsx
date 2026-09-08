@@ -11,57 +11,23 @@ import { Badge } from '@/components/ui/badge';
 
 export default function AlertsPage() {
   const [events, setEvents] = useState<any[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchAlerts = async () => {
     try {
       const res = await api.get('/alerts');
-      if (res.data.success && res.data.data.length > 0) {
-        setEvents(res.data.data);
-      } else {
-        fallbackEvents();
+      if (!res.data.success || !Array.isArray(res.data.data)) {
+        throw new Error('Alert API returned an invalid response');
       }
+      setEvents(res.data.data);
+      setError(null);
     } catch (err) {
-      fallbackEvents();
+      setEvents([]);
+      setError('Unable to load alerts from the backend. Check the API connection and refresh.');
     } finally {
       setLoading(false);
     }
-  };
-
-  const fallbackEvents = () => {
-    setEvents([
-      {
-        id: 'evt-01',
-        type: 'FLOOD',
-        title: 'Bagmati Basin Critical Flood Inundation',
-        description: 'Water level reached 88cm at Balkhu sensor. Deterministic risk engine flagged 82/100 risk.',
-        severity: 'CRITICAL',
-        status: 'NOTIFYING',
-        riskScore: 82,
-        radiusMeters: 5000,
-        createdAt: new Date().toISOString(),
-        alerts: [
-          {
-            id: 'alt-1',
-            status: 'SAFE',
-            user: { name: 'Ram Bahadur Thapa', phone: '+9779800000001' },
-            responses: [{ response: 'SAFE', message: 'Evacuated to 2nd floor' }]
-          },
-          {
-            id: 'alt-2',
-            status: 'UNSAFE',
-            user: { name: 'Sita Devi Shrestha', phone: '+9779800000002' },
-            responses: [{ response: 'UNSAFE', message: 'Elderly person stranded' }]
-          },
-          {
-            id: 'alt-3',
-            status: 'WAITING_RESPONSE',
-            user: { name: 'Hari Prasad Sharma', phone: '+9779800000003' },
-            responses: []
-          }
-        ]
-      }
-    ]);
   };
 
   useEffect(() => {
@@ -119,6 +85,8 @@ export default function AlertsPage() {
           Lifecycle State Transition: <code>DETECTED ➔ ANALYZING ➔ CONFIRMED ➔ NOTIFYING ➔ RESOLVED</code>
         </p>
       </motion.div>
+
+      {error && <p role="alert" className="text-sm text-red-400">{error}</p>}
 
       {loading ? (
         <div className="text-center py-16 text-slate-500 text-xs">Querying alert dispatch logs...</div>

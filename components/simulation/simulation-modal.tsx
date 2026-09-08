@@ -14,18 +14,20 @@ interface SimulationModalProps {
 
 export default function SimulationModal({ onClose }: SimulationModalProps) {
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   const triggerScenario = async (scenario: string, durationSeconds = 120) => {
     setLoading(true);
     setSuccessMsg(null);
+    setErrorMsg(null);
     try {
       const res = await api.post('/sim/scenario', { scenario, durationSeconds });
       if (res.data.success) {
         setSuccessMsg(`Simulated: ${scenario} event activated!`);
       }
     } catch (err: any) {
-      setSuccessMsg(`Scenario triggered (${scenario})`);
+      setErrorMsg('Scenario failed. Check that the backend and device simulator are running.');
     } finally {
       setLoading(false);
     }
@@ -34,13 +36,14 @@ export default function SimulationModal({ onClose }: SimulationModalProps) {
   const triggerNetworkOutage = async () => {
     setLoading(true);
     setSuccessMsg(null);
+    setErrorMsg(null);
     try {
       const res = await api.post('/sim/network-mode', { mode: 'LORA_FALLBACK' });
       if (res.data.success) {
         setSuccessMsg('Simulated WiFi outage! Station failed over to LoRa Radio.');
       }
     } catch (err: any) {
-      setSuccessMsg('WiFi outage simulated (LoRa active).');
+      setErrorMsg('Could not switch the simulator to LoRa.');
     } finally {
       setLoading(false);
     }
@@ -49,6 +52,7 @@ export default function SimulationModal({ onClose }: SimulationModalProps) {
   const resetAllNormal = async () => {
     setLoading(true);
     setSuccessMsg(null);
+    setErrorMsg(null);
     try {
       await Promise.all([
         api.post('/sim/scenario', { scenario: 'NORMAL' }),
@@ -56,7 +60,7 @@ export default function SimulationModal({ onClose }: SimulationModalProps) {
       ]);
       setSuccessMsg('System reset to All-Clear Baseline (WiFi MQTT).');
     } catch (err: any) {
-      setSuccessMsg('Reset to Normal baseline.');
+      setErrorMsg('Reset failed or only partially completed. Check the simulator and retry.');
     } finally {
       setLoading(false);
     }
@@ -98,6 +102,7 @@ export default function SimulationModal({ onClose }: SimulationModalProps) {
           Watch the risk engine analyze telemetry and trigger live Twilio notifications.
         </p>
 
+        {errorMsg && <p role="alert" className="text-sm text-red-400">{errorMsg}</p>}
         {successMsg && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
@@ -177,7 +182,7 @@ export default function SimulationModal({ onClose }: SimulationModalProps) {
             </motion.div>
           </div>
           <p className="text-[11px] text-slate-400">
-            Cuts WiFi connection. Station fails over to LoRa Radio simulation via Firebase Realtime Database.
+            Cuts WiFi connection. Station fails over to LoRa Radio simulation through the local SimPy gateway.
           </p>
         </div>
 

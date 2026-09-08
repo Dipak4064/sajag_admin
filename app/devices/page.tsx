@@ -12,88 +12,24 @@ import { Button } from '@/components/ui/button';
 
 export default function DevicesPage() {
   const [devices, setDevices] = useState<any[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [flashId, setFlashId] = useState<string | null>(null);
 
   const fetchDevices = async () => {
     try {
-      const res = await api.get('/devices');
-      if (res.data.success && res.data.data.length > 0) {
-        setDevices(res.data.data);
-      } else {
-        fallbackDevices();
-      }
+      // The API response is backed by Device + the latest persisted
+      // SensorReading. Only include stations whose heartbeat is current.
+      const res = await api.get('/devices', { params: { connectedOnly: true } });
+      if (!res.data.success) throw new Error('Telemetry request failed');
+      setDevices(Array.isArray(res.data.data) ? res.data.data : []);
+      setError(null);
     } catch (err) {
-      fallbackDevices();
+      setError('Unable to reach the backend. Start the simulation stack and refresh.');
     } finally {
       setLoading(false);
     }
-  };
-
-  const fallbackDevices = () => {
-    setDevices([
-      {
-        id: 'dev-1',
-        deviceId: 'ESP32_BALKHU_01',
-        name: 'Balkhu Bridge Station (Bagmati Basin)',
-        latitude: 27.6895,
-        longitude: 85.3021,
-        status: 'ONLINE',
-        transport: 'MQTT',
-        readings: [{ waterLevel: 42, acceleration: 0.05, rainfall: 12, soilMoisture: 45, timestamp: new Date().toISOString() }]
-      },
-      {
-        id: 'dev-2',
-        deviceId: 'ESP32_SUNDARIJAL_02',
-        name: 'Sundarijal Water Gate Inflow',
-        latitude: 27.7667,
-        longitude: 85.4167,
-        status: 'ONLINE',
-        transport: 'MQTT',
-        readings: [{ waterLevel: 28, acceleration: 0.02, rainfall: 8, soilMoisture: 38, timestamp: new Date().toISOString() }]
-      },
-      {
-        id: 'dev-3',
-        deviceId: 'ESP32_KIRTIPUR_03',
-        name: 'Kirtipur Hill Slope Station',
-        latitude: 27.6800,
-        longitude: 85.2850,
-        status: 'ONLINE',
-        transport: 'MQTT',
-        readings: [{ waterLevel: 15, acceleration: 0.04, rainfall: 5, soilMoisture: 52, timestamp: new Date().toISOString() }]
-      },
-      {
-        id: 'dev-4',
-        deviceId: 'ESP32_THAMEL_04',
-        name: 'Thamel Urban Drainage Corridor',
-        latitude: 27.7154,
-        longitude: 85.3123,
-        status: 'ONLINE',
-        transport: 'MQTT',
-        readings: [{ waterLevel: 22, acceleration: 0.06, rainfall: 14, soilMoisture: 30, timestamp: new Date().toISOString() }]
-      },
-      {
-        id: 'dev-5',
-        deviceId: 'ESP32_CHOBHAR_05',
-        name: 'Chobhar Gorge River Outlet',
-        latitude: 27.6610,
-        longitude: 85.2920,
-        status: 'ONLINE',
-        transport: 'LORA_SIM',
-        readings: [{ waterLevel: 55, acceleration: 0.03, rainfall: 18, soilMoisture: 60, timestamp: new Date().toISOString() }]
-      },
-      {
-        id: 'dev-6',
-        deviceId: 'ESP32_NAGDHUNGA_06',
-        name: 'Nagdhunga Landslide Corridor',
-        latitude: 27.7080,
-        longitude: 85.2200,
-        status: 'ONLINE',
-        transport: 'LORA_SIM',
-        readings: [{ waterLevel: 18, acceleration: 0.08, rainfall: 25, soilMoisture: 78, timestamp: new Date().toISOString() }]
-      }
-    ]);
   };
 
   useEffect(() => {
@@ -121,7 +57,7 @@ export default function DevicesPage() {
 
   const toggleDeviceTransport = async (device: any) => {
     const newMode = device.transport === 'LORA_SIM' ? 'NORMAL' : 'LORA_FALLBACK';
-    const targetTransport = device.transport === 'LORA_SIM' ? 'MQTT' : 'LORA_SIM';
+    setError(null);
     setTogglingId(device.deviceId);
 
     try {
@@ -129,22 +65,9 @@ export default function DevicesPage() {
         mode: newMode,
         deviceId: device.deviceId
       });
-      // Optimistic update
-      setDevices((prev) =>
-        prev.map((d) =>
-          d.deviceId === device.deviceId
-            ? { ...d, transport: targetTransport }
-            : d
-        )
-      );
+      // The next received reading confirms the actual transport.
     } catch (e) {
-      setDevices((prev) =>
-        prev.map((d) =>
-          d.deviceId === device.deviceId
-            ? { ...d, transport: targetTransport }
-            : d
-        )
-      );
+      setError('Transport change failed. Only running virtual ESP32 nodes can be switched here.');
     } finally {
       setTogglingId(null);
       setFlashId(device.deviceId);
@@ -177,6 +100,10 @@ export default function DevicesPage() {
         </motion.div>
       </motion.div>
 
+      {error && <p role="alert" className="text-sm text-red-400">{error}</p>}
+      {!loading && devices.length === 0 && (
+        <p className="text-sm text-slate-400">No telemetry received. Start the simulator or publish from IoT MQTT Panel.</p>
+      )}
       {/* Grid of Station Telemetry Cards */}
       <motion.div variants={staggerContainer()} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {loading ? (
@@ -187,10 +114,10 @@ export default function DevicesPage() {
           <AnimatePresence mode="popLayout" initial={false}>
           {devices.map((d) => {
             const reading = d.readings?.[0] || {
-              waterLevel: 25,
-              acceleration: 0.04,
-              rainfall: 10,
-              soilMoisture: 40
+              waterLevel: '—',
+              acceleration: '—',
+              rainfall: '—',
+              soilMoisture: '—'
             };
             const isLoRa = d.transport === 'LORA_SIM';
             const isToggling = togglingId === d.deviceId;
@@ -273,7 +200,7 @@ export default function DevicesPage() {
                   <div className="flex items-center gap-1.5 text-xs font-semibold">
                     {isLoRa ? (
                       <span className="text-amber-400 flex items-center gap-1">
-                        <WifiOff className="w-3.5 h-3.5" /> LoRa Radio Fallback (Firebase)
+                        <WifiOff className="w-3.5 h-3.5" /> LoRa Radio Fallback (SimPy)
                       </span>
                     ) : (
                       <span className="text-sky-400 flex items-center gap-1">
